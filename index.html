@@ -1,32 +1,332 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>flame background test</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mission Control — Telegram Bots</title>
+<meta name="theme-color" content="#00e5ff" />
 <style>
-html,body{
-  height:100%;
-  margin:0;
-  padding:0;
-  overflow:hidden;
-}
-video.bg-video{
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  min-width: 100vw;
-  min-height: 100vh;
-  object-fit: cover;
-  z-index: -1;
-}
+  :root{
+    --bg:#000;
+    --cyan:#00e5ff;
+    --cyan-600:#00bcd4;
+    --card:#0b1722;
+    --card-2:#0e1d2b;
+    --text:#e6f7ff;
+    --muted:#a8d8e6;
+    --ring: rgba(0,229,255,.35);
+  }
+  /* Reset-ish */
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family: ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--text);overflow:hidden}
+
+  /* FULLSCREEN VIDEO BACKGROUND */
+  .bg{
+    position:fixed; inset:0; z-index:-1; overflow:hidden; background:#000;
+  }
+  .bg video{
+    position:absolute; top:50%; left:50%;
+    min-width:100%; min-height:100%;
+    transform:translate(-50%,-50%);
+    object-fit:cover; filter: saturate(1.1) brightness(.9);
+  }
+  .bg::after{ /* subtle cyan vignette */
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(60% 60% at 50% 70%,
+      rgba(0,229,255,.20), rgba(0,0,0,.65) 60%, rgba(0,0,0,.85) 100%);
+    mix-blend-mode: screen;
+  }
+
+  /* LOADER */
+  .loader{
+    position:fixed; inset:0; display:grid; place-items:center; background:#000; z-index:50;
+    transition:opacity .6s ease;
+  }
+  .loader.hidden{opacity:0; pointer-events:none}
+  .spinner{
+    width:64px;height:64px;border-radius:50%;
+    border:3px solid rgba(0,229,255,.15); border-top-color:var(--cyan);
+    animation:spin 1s linear infinite;
+    box-shadow:0 0 0 6px rgba(0,229,255,.06), 0 0 40px rgba(0,229,255,.25) inset;
+  }
+  @keyframes spin {to{transform:rotate(360deg)}}
+
+  /* CONTENT WRAP */
+  .wrap{
+    position:relative; min-height:100dvh; display:flex; align-items:center; justify-content:center;
+    padding:clamp(16px,3vw,32px);
+  }
+  .glass{
+    width:min(1100px,95vw); border-radius:24px; padding:28px;
+    background: linear-gradient(180deg, rgba(11,23,34,.62), rgba(11,23,34,.38));
+    backdrop-filter: blur(10px) saturate(1.3);
+    border:1px solid rgba(0,229,255,.18);
+    box-shadow: 0 10px 40px rgba(0,0,0,.35), 0 0 80px rgba(0,229,255,.08);
+  }
+
+  /* HEADER */
+  .brand{
+    display:flex; align-items:center; gap:14px; margin-bottom:8px;
+  }
+  .logo{
+    width:42px;height:42px;border-radius:12px;
+    background: radial-gradient(80% 80% at 50% 20%, var(--cyan) 0%, #0ef 30%, #004c5a 65%, #001318 100%);
+    box-shadow: 0 0 30px rgba(0,229,255,.45), inset 0 0 10px rgba(255,255,255,.15);
+  }
+  h1{margin:0;font-size:clamp(1.6rem,3.5vw,2.4rem);letter-spacing:.2px}
+  .tag{
+    margin:.25rem 0 1.25rem;color:var(--muted);
+    font-size:clamp(.95rem,2.1vw,1.05rem)
+  }
+
+  /* CTA AREA */
+  .cta{
+    display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:20px 0 8px;
+  }
+  .btn{
+    --pad:14px 18px; --bg:linear-gradient(135deg,#01e9ff,#00bcd4);
+    display:inline-flex; align-items:center; gap:10px;
+    padding:var(--pad); border-radius:14px; border:1px solid rgba(255,255,255,.12);
+    color:#031a20; font-weight:700; text-decoration:none; cursor:pointer;
+    background:var(--bg);
+    box-shadow: 0 8px 30px rgba(0,229,255,.28), inset 0 1px 0 rgba(255,255,255,.35);
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+  }
+  .btn:hover{transform:translateY(-2px); filter:saturate(1.05)}
+  .btn:active{transform:translateY(0)}
+  .ghost{
+    --pad:12px 14px;
+    background:rgba(14,29,43,.55); color:var(--text);
+    box-shadow: inset 0 0 0 1px rgba(0,229,255,.25);
+  }
+
+  /* GRID CARDS */
+  .grid{
+    display:grid; gap:16px; margin-top:22px;
+    grid-template-columns: repeat(12,1fr);
+  }
+  .card{
+    grid-column: span 12;
+    background:linear-gradient(180deg, var(--card), var(--card-2));
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:16px; padding:18px 18px 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35), 0 0 0 1px var(--ring) inset;
+    opacity:0; transform: translateY(16px) scale(.98);
+    transition: opacity .6s ease, transform .6s ease;
+  }
+  .card.show{opacity:1; transform: translateY(0) scale(1)}
+  .card h3{margin:.1rem 0 .3rem; font-size:1.05rem; letter-spacing:.3px}
+  .card p{margin:0;color:#cdeefa;line-height:1.45}
+  .meta{display:flex; gap:10px; align-items:center; color:#7fd9ea; font-size:.9rem}
+  .kpi{display:grid; grid-template-columns:repeat(3,minmax(80px,1fr)); gap:10px; margin-top:8px}
+  .kpi div{background:#0a1924;border:1px solid rgba(0,229,255,.12);border-radius:12px;padding:10px;text-align:center}
+  .kpi b{display:block;font-size:1.05rem;color:#9ff3ff}
+
+  .span-6{grid-column: span 6}
+  .span-4{grid-column: span 4}
+  @media (max-width:920px){
+    .span-6,.span-4{grid-column: span 12}
+  }
+
+  /* FOOT SMALL */
+  .foot{
+    display:flex; justify-content:space-between; gap:12px; margin-top:16px; color:#93d7e8; font-size:.85rem
+  }
+
+  /* ENTER ANIMATIONS */
+  .hiddenAll{visibility:hidden}
+  .fadeIn{animation:fade .6s ease both}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+
+  /* Accessibility */
+  @media (prefers-reduced-motion: reduce){
+    .spinner{animation:none}
+    .card,.btn{transition:none}
+    .card{opacity:1; transform:none}
+  }
 </style>
 </head>
 <body>
 
-<video class="bg-video" autoplay loop muted playsinline>
-  <source src="flame.mp4" type="video/mp4">
-</video>
+  <!-- Background video (same folder) -->
+  <div class="bg" aria-hidden="true">
+    <video id="bgVideo" autoplay muted loop playsinline preload="auto">
+      <source src="./flame.mp4" type="video/mp4" />
+      <!-- If you export WEBM as well, add it as a second source -->
+      <!-- <source src="./flame.webm" type="video/webm" /> -->
+    </video>
+  </div>
 
+  <!-- Loader: page appears ONLY after video is ready or after a short timeout -->
+  <div id="loader" class="loader" role="status" aria-live="polite">
+    <div style="display:grid; place-items:center; gap:14px">
+      <div class="spinner"></div>
+      <div style="color:#86eaff; font-size:.95rem; letter-spacing:.2px;">Preparing your welcome screen…</div>
+    </div>
+  </div>
+
+  <!-- Main glass panel -->
+  <div id="app" class="wrap hiddenAll" aria-hidden="true">
+    <section class="glass fadeIn" style="animation-delay:.05s">
+      <!-- Header / Title -->
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Mission Control for Telegram Bots</h1>
+          <div class="tag">Link all your bots. Upload user lists. Broadcast anywhere — even if bots are offline.</div>
+        </div>
+      </div>
+
+      <!-- CTAs -->
+      <div class="cta">
+        <button id="getStarted" class="btn" aria-label="Get Started">
+          <!-- tiny rocket -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M14 4l6 6-6 6-4-4-6 2 2-6-4-4 6-6 4 4z" opacity=".85"/>
+          </svg>
+          Get Started
+        </button>
+        <button id="learnMore" class="btn ghost" aria-label="Learn more">How it works</button>
+      </div>
+
+      <!-- GRID -->
+      <div class="grid" id="grid">
+        <!-- PART 1: Front Door -->
+        <article class="card span-6" style="animation-delay:.1s">
+          <div class="meta">
+            <!-- shield icon -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#7fd9ea" aria-hidden="true">
+              <path d="M12 2l8 4v6c0 5-3.8 9.7-8 10-4.2-.3-8-5-8-10V6l8-4z"/>
+            </svg>
+            <strong>Front Door — Authentication</strong>
+          </div>
+          <h3>Sign Up with Email, Password & Telegram ID</h3>
+          <p>
+            Users fetch their <b>Telegram User ID</b> via the system-owned <b>Auth Bot</b> (/start). On submit, an OTP is sent to their Telegram. The UI auto-switches to OTP entry and completes login on success.
+          </p>
+        </article>
+
+        <!-- PART 2: Dashboard -->
+        <article class="card span-6" style="animation-delay:.15s">
+          <div class="meta">
+            <!-- dashboard icon -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#7fd9ea" aria-hidden="true">
+              <path d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h5v8H3v-8zm7 4h11v4H10v-4z"/>
+            </svg>
+            <strong>Control Center — Dashboard</strong>
+          </div>
+          <h3>Add Bots & Upload Users (CSV/JSON/TXT)</h3>
+          <p>
+            Paste a bot token to validate and add it. Upload user files with a live scanner that extracts unique numeric IDs, de-duplicates across uploads, and updates counts per bot in real time.
+          </p>
+        </article>
+
+        <!-- PART 3: Broadcast -->
+        <article class="card span-6" style="animation-delay:.2s">
+          <div class="meta">
+            <!-- megaphone icon -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#7fd9ea" aria-hidden="true">
+              <path d="M3 10v4a2 2 0 0 0 2 2h3l4 4v-16l-4 4H5a2 2 0 0 0-2 2zM17 8h2v8h-2z"/>
+            </svg>
+            <strong>Main Event — Broadcasting</strong>
+          </div>
+          <h3>Select Bots (all pre-selected) & Send</h3>
+          <p>
+            Compose in Markdown and broadcast instantly. Watch the live status panel update every few seconds: <i>Sent</i>, <i>Failed</i> (blocked users), and <i>Total Recipients</i> until <b>Complete</b>.
+          </p>
+          <div class="kpi" aria-hidden="true">
+            <div><b>15,000</b><span>Recipients</span></div>
+            <div><b>7,500</b><span>Sent</span></div>
+            <div><b>45</b><span>Failed</span></div>
+          </div>
+        </article>
+
+        <!-- Architecture -->
+        <article class="card span-6" style="animation-delay:.25s">
+          <div class="meta">
+            <!-- server icon -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#7fd9ea" aria-hidden="true">
+              <path d="M3 4h18v6H3zM3 14h18v6H3zM6 6h4v2H6zm0 10h4v2H6z"/>
+            </svg>
+            <strong>Architecture & Ops</strong>
+          </div>
+          <h3>SPA + API + Bot Listener + Background Workers</h3>
+          <p>
+            Dual-service backend (API & 24/7 Auth Bot listener), cloud DB for accounts/tokens/IDs/status, background jobs for long tasks, live polling for UX, and a public health endpoint for free hosting wake-ups.
+          </p>
+        </article>
+      </div>
+
+      <div class="foot">
+        <div>Made for Telegram bot owners • Cyan tech theme</div>
+        <div>Seamless login → manage bots → upload users → broadcast</div>
+      </div>
+    </section>
+  </div>
+
+<script>
+  // ========= CONFIG: set your target URL here =========
+  const START_URL = "https://your-app.example.com"; // <-- put your real SPA URL here
+  // ====================================================
+
+  const loader = document.getElementById('loader');
+  const app = document.getElementById('app');
+  const bgVideo = document.getElementById('bgVideo');
+  const grid = document.getElementById('grid');
+  const getStarted = document.getElementById('getStarted');
+  const learnMore = document.getElementById('learnMore');
+
+  // Helper: reveal app and play entrance animations
+  function revealApp(){
+    // show content
+    app.classList.remove('hiddenAll');
+    app.setAttribute('aria-hidden','false');
+    // stagger cards
+    const cards = [...grid.querySelectorAll('.card')];
+    cards.forEach((c, i) => {
+      setTimeout(()=> c.classList.add('show'), 120 + i*80);
+    });
+  }
+
+  // Load gate: show page only when video is ready OR after 2.2s fallback
+  let revealed = false;
+  function doneLoading(){
+    if (revealed) return;
+    revealed = true;
+    loader.classList.add('hidden');
+    setTimeout(()=> loader.style.display='none', 700);
+    revealApp();
+  }
+
+  // Prefer canplaythrough, fallback to loadeddata, and time cap
+  bgVideo.addEventListener('canplaythrough', doneLoading, { once:true });
+  bgVideo.addEventListener('loadeddata', () => setTimeout(doneLoading, 250), { once:true });
+  setTimeout(doneLoading, 2200); // safety fallback so users aren’t stuck
+
+  // CTA handlers
+  getStarted.addEventListener('click', () => {
+    // small press feedback
+    getStarted.style.transform = 'translateY(0)';
+    window.location.href = START_URL;
+  });
+
+  learnMore.addEventListener('click', () => {
+    // Smooth scroll to cards (we’re already on top; simple flash)
+    grid.scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+
+  // If autoplay fails (rare if muted), try to play after first user interaction
+  document.addEventListener('click', () => {
+    if (bgVideo.paused) { bgVideo.muted = true; bgVideo.play().catch(()=>{}); }
+  }, { once:true });
+
+  // Accessibility: reduce motion preference
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    app.classList.remove('hiddenAll'); // skip gating on very slow devices
+  }
+</script>
 </body>
 </html>
 
