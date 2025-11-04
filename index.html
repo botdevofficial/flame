@@ -65,7 +65,16 @@
     border:1px solid rgba(0,229,255,.18);
     box-shadow: 0 10px 40px rgba(0,0,0,.35), 0 0 80px rgba(0,229,255,.08);
   }
+  .topper{
+            /* This is the key style to center it */
+            text-align: center;
 
+            /* Optional: Add some spacing */
+            padding: 20px;
+            margin: 0;
+            background-color: #333;
+            color: white;
+        }
   /* HEADER */
   .brand{
     display:flex; align-items:center; gap:14px; margin-bottom:8px;
@@ -153,7 +162,7 @@
 </style>
 </head>
 <body>
-<h1>Welcome To BotFusion</h1>
+<h1 class="topper">Welcome To BotFusion</h1>
   <!-- Background video (same folder) -->
   <div class="bg" aria-hidden="true">
     <video id="bgVideo" autoplay muted loop playsinline preload="auto">
